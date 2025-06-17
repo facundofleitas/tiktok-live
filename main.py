@@ -25,7 +25,19 @@ class PygameRenderer:
     def __init__(self, game_state: GameState):
         pygame.init()
         self.game_state = game_state
-        self.screen = pygame.display.set_mode((game_state.config.width, game_state.config.height))
+
+        # --- Supersampling para mejor calidad ---
+        self.scale = 3  # Renderizar internamente al doble de resolución
+        self.lores_width = game_state.config.width
+        self.lores_height = game_state.config.height
+        self.hires_width = self.lores_width * self.scale
+        self.hires_height = self.lores_height * self.scale
+
+        # La pantalla que ve el usuario (baja resolución)
+        self.screen = pygame.display.set_mode((self.lores_width, self.lores_height))
+        # La superficie interna para dibujar (alta resolución)
+        self.hires_surface = pygame.Surface((self.hires_width, self.hires_height))
+
         pygame.display.set_caption("TikTok Plinko Battle")
         self.clock = pygame.time.Clock()
         # Colores
@@ -33,51 +45,73 @@ class PygameRenderer:
         self.peg_color = (200, 200, 200)
         self.women_color = (255, 100, 180)
         self.men_color = (100, 150, 255)
-        self.font = pygame.font.SysFont("Arial", 24)
+        # La fuente también se escala para el renderizado en alta resolución
+        self.font = pygame.font.SysFont("Arial", 24 * self.scale)
 
     def draw(self) -> None:
-        self.screen.fill(self.bg_color)
+        # 1. Dibujar todo en la superficie de alta resolución
+        self.hires_surface.fill(self.bg_color)
         self._draw_pegs()
         self._draw_slots()
         self._draw_balls()
         self._draw_scores()
+
+        # 2. Reducir la superficie de alta resolución a la pantalla con un filtro suave
+        pygame.transform.smoothscale(
+            self.hires_surface, (self.lores_width, self.lores_height), self.screen
+        )
+
+        # 3. Actualizar la pantalla
         pygame.display.flip()
 
     def _draw_pegs(self) -> None:
-        glow_duration = 1.0  # Debe coincidir con timer en lógica
+        glow_duration = 0.5  # Debe coincidir con timer en lógica
         for peg in self.game_state.pegs:
-            # Si está activo el glow, dibuja un halo con varias capas para un fade moderno
+            # Si está activo el glow, dibuja un efecto neón con desenfoque.
             if peg.hit_timer > 0:
-                # t va de 1 a 0 conforme el brillo se desvanece
-                t = peg.hit_timer / glow_duration
-                max_radius = int(peg.radius * (3.0 - 1.5 * t))  # se reduce con el tiempo
-                num_layers = 10
-                # Recorremos desde capas externas (más grandes) a internas para que el centro resalte
-                for i in reversed(range(num_layers)):
-                    layer_ratio = (i + 1) / num_layers  # 0..1
-                    radius = int(max_radius * layer_ratio)
-                    # Fade radial (capas externas más transparentes)
-                    radial_alpha = (layer_ratio ** 2)
-                    # Fade temporal (luz se apaga con t)
-                    temporal_alpha = t ** 1.3  # curva más suave
-                    alpha = int(255 * temporal_alpha * radial_alpha)
-                    if alpha <= 3:
-                        continue
-                    glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-                    glow_color = (50, 240, 255, alpha)  # cian eléctrico
-                    pygame.draw.circle(glow_surf, glow_color, (radius, radius), radius)
-                    self.screen.blit(
-                        glow_surf, (int(peg.x - radius), int(peg.y - radius)), special_flags=pygame.BLEND_RGBA_ADD
-                    )
+                t = peg.hit_timer / glow_duration  # 1 -> recién golpeado, 0 -> sin glow
 
-            # Dibuja el peg base por encima
-            pygame.draw.circle(self.screen, self.peg_color, (int(peg.x), int(peg.y)), peg.radius)
+                # Todos los cálculos se hacen en coordenadas de alta resolución
+                base_peg_radius_hires = peg.radius * self.scale
+                glow_radius = int(base_peg_radius_hires * (3 + 2 * t))
+                core_radius = base_peg_radius_hires + int(base_peg_radius_hires * 0.5 * t)
+
+                glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(
+                    glow_surf, (0, 255, 255), (glow_radius, glow_radius), core_radius
+                )
+
+                # Técnica de "Gaussian Blur" simulado
+                temp_size = (glow_radius * 2 // 4, glow_radius * 2 // 4)
+                small_surf = pygame.transform.smoothscale(glow_surf, temp_size)
+                blurred_surf = pygame.transform.smoothscale(
+                    small_surf, (glow_radius * 2, glow_radius * 2)
+                )
+
+                alpha = int(255 * t**1.5)
+                blurred_surf.set_alpha(alpha)
+
+                # Dibujar en la superficie hires, con coordenadas escaladas
+                self.hires_surface.blit(
+                    blurred_surf,
+                    (int(peg.x * self.scale - glow_radius), int(peg.y * self.scale - glow_radius)),
+                    special_flags=pygame.BLEND_RGBA_ADD,
+                )
+
+            # Dibuja el peg base en alta resolución
+            pygame.draw.circle(
+                self.hires_surface,
+                self.peg_color,
+                (int(peg.x * self.scale), int(peg.y * self.scale)),
+                int(peg.radius * self.scale),
+            )
 
     def _draw_slots(self) -> None:
         max_pegs = self.game_state.config.top_pegs + self.game_state.config.rows - 1
         slot_count = max_pegs - 1
-        slot_width = self.game_state.config.width / (max_pegs + 1)
-        slot_height = self.game_state.config.bottom_margin
+        # Ancho de ranura calculado en alta resolución
+        slot_width = self.hires_width / (max_pegs + 1)
+        slot_height = self.game_state.config.bottom_margin * self.scale
 
         # Colores gradientes del centro (amarillo) a extremos (rojo)
         base_colors = [
@@ -91,43 +125,51 @@ class PygameRenderer:
         def color_for_index(i: int) -> tuple[int, int, int]:
             mid = slot_count // 2
             distance = abs(i - mid)
-            # Normaliza distancia a rango de base_colors
             idx = min(distance, len(base_colors) - 1)
             return base_colors[idx]
 
         for i in range(slot_count):
-            # Seleccionar puntos (si falta, usar último)
             if i < len(self.game_state.config.slot_scores):
                 points = self.game_state.config.slot_scores[i]
             else:
                 points = self.game_state.config.slot_scores[-1]
 
             color = color_for_index(i)
+            # Coordenadas y tamaño en alta resolución
             x = (i + 1) * slot_width
-            y = self.game_state.config.height - slot_height
+            y = self.hires_height - slot_height
             rect = pygame.Rect(x, y, slot_width, slot_height)
-            pygame.draw.rect(self.screen, color, rect)
-            # Borde
-            pygame.draw.rect(self.screen, (0, 0, 0), rect, 2)
+            pygame.draw.rect(self.hires_surface, color, rect)
+            # Borde escalado
+            pygame.draw.rect(self.hires_surface, (0, 0, 0), rect, 2 * self.scale)
 
-            # Texto de puntos
+            # Texto de puntos (la fuente ya está escalada)
             label = f"{points}"
             text = self.font.render(label, True, (255, 255, 255))
             txt_rect = text.get_rect(center=(x + slot_width / 2, y + slot_height / 2))
-            self.screen.blit(text, txt_rect)
+            self.hires_surface.blit(text, txt_rect)
 
     def _draw_balls(self) -> None:
         for ball in self.game_state.balls:
             color = self.women_color if ball.team == Team.WOMEN else self.men_color
-            pygame.draw.circle(self.screen, color, (int(ball.x), int(ball.y)), ball.radius)
+            # Dibujar bola en alta resolución
+            pygame.draw.circle(
+                self.hires_surface,
+                color,
+                (int(ball.x * self.scale), int(ball.y * self.scale)),
+                ball.radius * self.scale,
+            )
 
     def _draw_scores(self) -> None:
         women_score = self.game_state.scores[Team.WOMEN]
         men_score = self.game_state.scores[Team.MEN]
         text_women = self.font.render(f"Mujeres: {women_score}", True, self.women_color)
         text_men = self.font.render(f"Hombres: {men_score}", True, self.men_color)
-        self.screen.blit(text_women, (10, 10))
-        self.screen.blit(text_men, (self.game_state.config.width - text_men.get_width() - 10, 10))
+        # Posicionar texto en coordenadas de alta resolución
+        self.hires_surface.blit(text_women, (10 * self.scale, 10 * self.scale))
+        self.hires_surface.blit(
+            text_men, (self.hires_width - text_men.get_width() - 10 * self.scale, 10 * self.scale)
+        )
 
 
 # -----------------------------------------------------------------------------

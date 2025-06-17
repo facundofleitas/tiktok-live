@@ -163,7 +163,7 @@ class GameState:
                 ball.vy *= self.config.damping
 
                 # Activa glow
-                peg.hit_timer = 1.0  # durará un segundo
+                peg.hit_timer = 0.5  # durará medio segundo
 
     def _handle_ball_scored(self, ball: Ball) -> None:
         # Huecos entre los pegs inferiores
