@@ -151,14 +151,52 @@ class PygameRenderer:
 
     def _draw_balls(self) -> None:
         for ball in self.game_state.balls:
-            color = self.women_color if ball.team == Team.WOMEN else self.men_color
-            # Dibujar bola en alta resolución
-            pygame.draw.circle(
-                self.hires_surface,
-                color,
-                (int(ball.x * self.scale), int(ball.y * self.scale)),
-                ball.radius * self.scale,
-            )
+            if getattr(ball, "avatar_surface", None):
+                # Dimensiones en alta resolución
+                radius_px = int(ball.radius * self.scale)
+                diameter = radius_px * 2
+
+                # Escala el avatar para que encaje en la pelota
+                avatar_img = pygame.transform.smoothscale(
+                    ball.avatar_surface, (diameter, diameter)
+                )
+
+                # Crea una máscara circular para recortar la imagen
+                circular_avatar = pygame.Surface((diameter, diameter), pygame.SRCALPHA)
+                # Dibuja la imagen
+                circular_avatar.blit(avatar_img, (0, 0))
+                # Aplica la máscara multiplicando por un círculo blanco
+                mask = pygame.Surface((diameter, diameter), pygame.SRCALPHA)
+                pygame.draw.circle(
+                    mask,
+                    (255, 255, 255, 255),
+                    (radius_px, radius_px),
+                    radius_px,
+                )
+                circular_avatar.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+                center = (int(ball.x * self.scale), int(ball.y * self.scale))
+
+                # Dibuja borde con color del equipo
+                border_color = self.women_color if ball.team == Team.WOMEN else self.men_color
+                pygame.draw.circle(
+                    self.hires_surface,
+                    border_color,
+                    center,
+                    radius_px + 3,  # grosor fijo de 3 px en hires
+                )
+
+                rect = circular_avatar.get_rect(center=center)
+                self.hires_surface.blit(circular_avatar, rect)
+            else:
+                color = self.women_color if ball.team == Team.WOMEN else self.men_color
+                # Dibujar bola en alta resolución
+                pygame.draw.circle(
+                    self.hires_surface,
+                    color,
+                    (int(ball.x * self.scale), int(ball.y * self.scale)),
+                    ball.radius * self.scale,
+                )
 
     def _draw_scores(self) -> None:
         women_score = self.game_state.scores[Team.WOMEN]
@@ -177,7 +215,11 @@ class PygameRenderer:
 # -----------------------------------------------------------------------------
 async def run_event_source(event_source: EventSource, game_state: GameState) -> None:
     # Registra callbacks
-    event_source.on_comment(lambda username, team: game_state.spawn_ball(team))
+    event_source.on_comment(
+        lambda username, team, avatar_url: game_state.spawn_ball(
+            team=team, username=username, avatar_url=avatar_url
+        )
+    )
 
     # Por ahora ignoramos likes/follows
     await event_source.run()

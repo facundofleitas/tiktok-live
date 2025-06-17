@@ -26,7 +26,23 @@ class TikTokEventSource(EventSource):
         @self._client.on("comment")
         async def on_comment(event: CommentEvent):  # type: ignore
             team = self._infer_team(event.comment)
-            self._emit_comment(event.user.nickname, team)
+
+            # El objeto user de TikTokLive suele incluir la lista de avatares en
+            # profilePicture o avatar_thumb. Intentamos obtener la URL más
+            # razonable y, si no está disponible, pasamos None.
+            avatar_url: Optional[str] = None
+            for attr in (
+                "profile_picture",
+                "profilePicture",
+                "avatar_thumb",
+                "avatarThumb",
+            ):
+                url = getattr(event.user, attr, None)
+                if isinstance(url, str):
+                    avatar_url = url
+                    break
+
+            self._emit_comment(event.user.nickname, team, avatar_url)
 
         @self._client.on("like")
         async def on_like(event: LikeEvent):  # type: ignore

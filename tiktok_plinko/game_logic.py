@@ -4,7 +4,7 @@ import math
 import random
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import List, Tuple
+from typing import List, Tuple, Any
 
 
 class Team(Enum):
@@ -47,6 +47,7 @@ class Ball:
     team: Team
     radius: int
     active: bool = True
+    avatar_surface: Any = field(default=None, repr=False)  # superficie con el avatar del usuario
 
     def update(self, dt: float, gravity: float) -> None:
         if not self.active:
@@ -102,14 +103,51 @@ class GameState:
     # ---------------------------------------------------------------------
     # API externa
     # ---------------------------------------------------------------------
-    def spawn_ball(self, team: Team) -> None:
-        """Crea una bola en la parte superior con velocidad inicial aleatoria."""
+    def spawn_ball(
+        self,
+        team: Team,
+        username: str | None = None,
+        avatar_url: str | None = None,
+    ) -> None:
+        """Crea una bola en la parte superior con velocidad inicial aleatoria.
+
+        Si se proporciona `avatar_url`, se intentará descargar la imagen y
+        almacenarla en la superficie `avatar_surface` de la bola para que el
+        renderizador pueda dibujarla en lugar del círculo de color.
+        """
+
         x = self.config.width / 2
         y = self.config.top_margin - 40  # justo encima de la primera fila
         vx = random.uniform(-40, 40)
         vy = 0
+
+        avatar_surface = None
+        if avatar_url:
+            try:
+                # Cargamos la imagen desde la URL. Todo se hace bajo demanda y
+                # sin bloqueo de la UI principal (puede tardar un par de ms).
+                import urllib.request
+                from io import BytesIO
+
+                import pygame  # type: ignore
+
+                with urllib.request.urlopen(avatar_url, timeout=5) as response:
+                    data = response.read()
+                    avatar_surface = pygame.image.load(BytesIO(data)).convert_alpha()
+            except Exception as exc:  # pylint: disable=broad-except
+                # Si algo falla, seguimos sin avatar y usamos el círculo por defecto
+                print(f"No se pudo cargar avatar {avatar_url}: {exc}")
+
         self.balls.append(
-            Ball(x=x, y=y, vx=vx, vy=vy, team=team, radius=self.config.ball_radius)
+            Ball(
+                x=x,
+                y=y,
+                vx=vx,
+                vy=vy,
+                team=team,
+                radius=self.config.ball_radius,
+                avatar_surface=avatar_surface,
+            )
         )
 
     def update(self, dt: float) -> None:
