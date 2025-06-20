@@ -76,7 +76,6 @@ class TikTokEventSource(EventSource):
         async def on_connect(event: ConnectEvent) -> None:
             self._running = True
             print(f"✅ Conectado a @{self.username}")
-            print(f"👥 Espectadores: {event.viewer_count}")
 
         @self._client.on(DisconnectEvent)
         async def on_disconnect(event: DisconnectEvent) -> None:

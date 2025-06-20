@@ -33,8 +33,8 @@ class GameConfig:
     damping: float = 0.55  # rebote
     rows: int = 8  # número de niveles (fila superior incluida)
     top_pegs: int = 3  # pegs en la primera fila
-    bottom_margin: int = 60  # espacio para las ranuras inferiores
-    top_margin: int = 100  # espacio superior antes de la primera fila
+    bottom_margin: int = 10  # espacio para las ranuras inferiores
+    top_margin: int = 200  # espacio superior antes de la primera fila
     cols: int = 9
     slot_count: int = 9  # número de ranuras en la parte inferior
     slot_scores: List[int] = field(
@@ -58,6 +58,7 @@ class Ball:
     username: str
     active: bool = True
     avatar_surface: Any = field(default=None, repr=False)
+    rotation: float = 0.0  # Ángulo de rotación en grados
 
     def update(self, dt: float, gravity: float) -> None:
         """Actualiza la física de la pelota."""
@@ -67,6 +68,14 @@ class Ball:
         self.vy += gravity * dt
         self.x += self.vx * dt
         self.y += self.vy * dt
+        
+        # Actualizar rotación basada en la velocidad horizontal (física real)
+        # La pelota rota en la dirección del movimiento
+        # Si se mueve hacia la derecha (+vx), rota hacia la derecha (sentido horario, +rotación)
+        # Si se mueve hacia la izquierda (-vx), rota hacia la izquierda (sentido antihorario, -rotación)
+        rotation_speed = self.vx * 1.5  # Factor de rotación (sin abs para mantener dirección)
+        self.rotation += rotation_speed * dt
+        self.rotation = self.rotation % 360  # Mantener entre 0-360 grados
 
     def deactivate(self) -> None:
         """Desactiva la pelota."""
