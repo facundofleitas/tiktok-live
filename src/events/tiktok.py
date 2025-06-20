@@ -89,7 +89,7 @@ class TikTokEventSource(EventSource):
             avatar_url = self._extract_avatar_url(event.user_info)
 
             logging.info(f"Comentario de {username}: {event.comment}")
-            self._emit_comment(username, avatar_url)
+            self._emit_comment(username, avatar_url, event.comment)
 
         @self._client.on(DiggEvent)
         async def on_like(event: DiggEvent) -> None:

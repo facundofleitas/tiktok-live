@@ -52,10 +52,10 @@ class EventSource(ABC):
     # Métodos protegidos para implementaciones
     # ------------------------------------------------------------------
     
-    def _emit_comment(self, username: str, avatar_url: Optional[str] = None) -> None:
+    def _emit_comment(self, username: str, avatar_url: Optional[str] = None, comment: str = "") -> None:
         """Emite un evento de comentario."""
         if self._on_comment_cb:
-            self._on_comment_cb(username, avatar_url)
+            self._on_comment_cb(username, avatar_url, comment)
 
     def _emit_like(self, username: str, avatar_url: Optional[str] = None) -> None:
         """Emite un evento de like."""

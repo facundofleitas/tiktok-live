@@ -3,6 +3,7 @@ Configuración centralizada de la aplicación.
 """
 
 import os
+from typing import Dict
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -37,11 +38,20 @@ class AppConfig:
     BALLS_PER_SHARE: int = 3
     BALLS_PER_DONATION: int = 5  # Base, se multiplica por el monto
     
+    # Configuración de comandos
+    COMMAND_COSTS: Dict[str, int] = None
+    
     def __post_init__(self):
         """Valida que los directorios de assets existan."""
         for directory in [self.CONTENT_DIR, self.SOUNDS_DIR, self.IMAGES_DIR]:
             if not directory.exists():
                 print(f"⚠️  Directorio no encontrado: {directory}")
+
+                # Configuración de costos de comandos
+        if self.COMMAND_COSTS is None:
+            self.COMMAND_COSTS = {
+                'msg': 50,      # Mostrar mensaje en pantalla
+            }
 
 
 # Instancia global de configuración

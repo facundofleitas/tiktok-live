@@ -10,6 +10,7 @@
 - **Sistema de Ranking**: Los espectadores compiten individualmente por el top de puntuaciones
 - **Efectos Visuales**: Partículas, avatares de usuarios, sonidos y animaciones
 - **Cantidad Configurable de Pelotas**: Cada tipo de evento genera diferente cantidad de pelotas
+- **Sistema de Comandos**: Los usuarios pueden gastar puntos acumulados en comandos especiales
 
 ## 🏗️ Estructura del Proyecto
 
@@ -21,7 +22,8 @@ tiktok-live/
 │   ├── core/                   # Lógica central del juego
 │   │   ├── __init__.py
 │   │   ├── config.py          # Configuración centralizada
-│   │   └── game_logic.py      # Estados, entidades y física del juego
+│   │   ├── game_logic.py      # Estados, entidades y física del juego
+│   │   └── commands.py        # Sistema de comandos con costo de puntos
 │   ├── events/                 # Sistema de eventos de streaming
 │   │   ├── __init__.py
 │   │   ├── base.py            # Interfaz abstracta para eventos
@@ -63,11 +65,24 @@ tiktok-live/
 ### 🔴 Integración TikTok Live
 - **Conexión en Tiempo Real**: Escucha eventos de TikTok Live usando TikTokLive API
 - **Múltiples Tipos de Eventos con Pelotas Configurables**:
-  - **Comentarios** → 1 pelota por defecto
+  - **Comentarios** → 1 pelota por defecto (o comando especial)
   - **Likes** → 1 pelota por defecto
   - **Follows** → 2 pelotas por defecto
   - **Shares** → 3 pelotas por defecto
   - **Regalos/Donaciones** → 5 pelotas base + bonus según el monto
+
+### 💬 Sistema de Comandos Interactivos
+- **Comando `msg`**: Los usuarios pueden gastar 25 puntos para mostrar un mensaje personalizado en el centro de la pantalla
+- **Formato**: `msg <mensaje>` (ejemplo: `msg Follow Me`)
+- **Características**:
+  - Mensaje centrado en pantalla con posición absoluta
+  - Incluye avatar circular del usuario
+  - Fondo elegante con bordes redondeados y efectos de brillo
+  - Duración de 6 segundos con fade out gradual
+  - Límite de 50 caracteres por mensaje
+  - Múltiples mensajes se apilan verticalmente centrados
+- **Verificación Automática**: Solo se ejecuta si el usuario tiene suficientes puntos
+- **Cobro Automático**: Los puntos se descuentan automáticamente al ejecutar el comando
 
 ### 🎨 Sistema de Renderizado Avanzado
 - **Supersampling 3x**: Renderizado en alta resolución para mejor calidad visual
@@ -76,6 +91,7 @@ tiktok-live/
   - Efectos de brillo (glow) cuando los pegs son golpeados
   - Sistema de partículas para estelas, colisiones y celebraciones
   - Avatares circulares de usuarios en las pelotas
+  - Mensajes de comandos superpuestos en el centro de la pantalla
 - **Top de Usuarios en Tiempo Real**: Panel lateral mostrando el ranking actual
 - **Audio Dinámico**: Sonidos de colisión y puntuación sincronizados
 
@@ -85,11 +101,13 @@ tiktok-live/
 - **Configuración Centralizada**: Todos los parámetros en un lugar, incluyendo cantidad de pelotas por evento
 - **Sistema de Cache de Avatares**: Los avatares se cargan una vez y se reutilizan por usuario
 - **Manejo de Errores Robusto**: Fallbacks para conexiones perdidas
+- **Sistema de Comandos Extensible**: Arquitectura preparada para agregar más comandos
 
 ### 🎮 Controles y Funcionalidades
 - **Controles de Teclado**:
   - `ESC`: Salir del juego
   - `R`: Reiniciar puntuaciones de todos los usuarios
+  - `M`: Mutear/Desmutear audio
   - `SPACE`: Pausa (preparado para futuro)
 - **Modos de Ejecución**:
   - Modo dummy (eventos simulados para pruebas)
@@ -102,6 +120,7 @@ tiktok-live/
 - **Callbacks Flexibles**: Sistema de callbacks para diferentes tipos de eventos
 - **Manejo Asíncrono**: Eventos procesados sin bloquear el renderizado
 - **Configuración de Pelotas**: Cantidad de pelotas por tipo de evento configurable
+- **Procesamiento de Comandos**: Detección automática de comandos en comentarios
 
 ## 🚀 Tecnologías Utilizadas
 
@@ -165,6 +184,24 @@ BALLS_PER_SHARE: int = 3
 BALLS_PER_DONATION: int = 5  # Base, se multiplica por el monto
 ```
 
+## 💰 Configuración de Comandos
+
+En `src/core/config.py` se pueden configurar los costos de los comandos:
+
+```python
+# Configuración de costos de comandos
+COMMAND_COSTS: Dict[str, int] = {
+    'msg': 25,      # Mostrar mensaje personalizado en pantalla
+    'rain': 80,     # Lluvia de pelotas especiales (preparado)
+    'boost': 60,    # Pelotas más grandes (preparado)
+    'glow': 20,     # Efecto de brillo (preparado)
+    'fireworks': 120, # Fuegos artificiales (preparado)
+    'freeze': 150,  # Congelar pelotas (preparado)
+    'mega': 200,    # Pelota gigante (preparado)
+    'rainbow': 90,  # Pelotas arcoíris (preparado)
+}
+```
+
 ## 📈 Futuras Extensiones
 
 El proyecto está diseñado para ser fácilmente extensible:
@@ -180,6 +217,25 @@ El proyecto está diseñado para ser fácilmente extensible:
 ---
 
 ## 🔄 Cambios Recientes
+
+### Sistema de Comandos con Puntos
+- **Agregado**: Sistema completo de comandos que consumen puntos acumulados
+- **Implementado**: Comando `msg` para mostrar mensajes personalizados en pantalla
+- **Características del comando `msg`**:
+  - Costo: 25 puntos
+  - Formato: `msg <mensaje>` (máximo 50 caracteres)
+  - Renderizado centrado en pantalla con avatar del usuario
+  - Duración de 6 segundos con fade out gradual
+  - Múltiples mensajes se apilan verticalmente
+- **Arquitectura**: Sistema extensible preparado para más comandos
+- **Integración**: Procesamiento automático en comentarios de TikTok Live
+- **Verificación**: Solo se ejecuta si el usuario tiene suficientes puntos
+- **Feedback**: Logging detallado de comandos ejecutados
+
+### Control de Audio con Tecla M
+- **Agregado**: Funcionalidad de mute/unmute con la tecla M
+- **Mejorado**: AudioManager con estado de mute interno
+- **Actualizado**: Controles de teclado y documentación
 
 ### Migración de Equipos a Top de Usuarios
 - **Eliminado**: Sistema de equipos (Hombres vs Mujeres)

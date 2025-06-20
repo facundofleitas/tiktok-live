@@ -4,6 +4,7 @@ Renderizador principal usando Pygame.
 
 from __future__ import annotations
 
+import time
 import pygame
 import random
 from typing import TYPE_CHECKING
@@ -109,6 +110,7 @@ class PygameRenderer:
         self._draw_particles()
         self._draw_balls()
         self._draw_top_users()
+        self._render_screen_messages(self.hires_surface)
 
         # Escalar a pantalla final
         pygame.transform.smoothscale(
@@ -414,11 +416,112 @@ class PygameRenderer:
             self.hires_surface.blit(username_surface, (avatar_x + avatar_size + 8 * self.scale, y_pos))
             
             # Puntuación
-            score_text = f"{user.score}"
+            score_text = f"${user.score}"
             score_surface = self.small_font.render(score_text, True, (255, 215, 0))  # Dorado
             score_rect = score_surface.get_rect(right=panel_x + panel_width - 8 * self.scale, y=y_pos)
             self.hires_surface.blit(score_surface, score_rect)
 
+    def _render_screen_messages(self, surface: pygame.Surface) -> None:
+        """Renderiza mensajes en pantalla de comandos centrados en el medio."""
+        if not hasattr(self.game_state, 'command_processor'):
+            return
+        
+        for i, msg in enumerate(self.game_state.command_processor.screen_messages):
+            # Calcular alpha basado en tiempo restante
+            elapsed = time.time() - msg.timestamp
+            remaining = max(0, msg.duration - elapsed)
+            alpha = int(255 * (remaining / msg.duration))
+            
+            if alpha <= 0:
+                continue
+            
+            # Configuración del mensaje
+            msg_width = 600 * self.scale
+            msg_height = 80 * self.scale
+            avatar_size = 50 * self.scale
+            
+            # Crear superficie del mensaje con bordes redondeados
+            msg_surface = pygame.Surface((msg_width, msg_height), pygame.SRCALPHA)
+            
+            # Fondo con bordes redondeados y gradiente
+            border_radius = int(15 * self.scale)
+            
+            # Fondo principal
+            pygame.draw.rect(msg_surface, (0, 0, 0, 180), 
+                           (0, 0, msg_width, msg_height), 
+                           border_radius=border_radius)
+            
+            # Borde brillante
+            pygame.draw.rect(msg_surface, (100, 200, 255, 100), 
+                           (0, 0, msg_width, msg_height), 
+                           width=int(3 * self.scale), 
+                           border_radius=border_radius)
+            
+            # Avatar del usuario (circular)
+            avatar_x = int(15 * self.scale)
+            avatar_y = int((msg_height - avatar_size) // 2)
+            
+            if msg.avatar_surface:
+                try:
+                    # Escalar avatar
+                    avatar_scaled = pygame.transform.smoothscale(
+                        msg.avatar_surface, (avatar_size, avatar_size)
+                    )
+                    
+                    # Crear máscara circular
+                    circular_avatar = pygame.Surface((avatar_size, avatar_size), pygame.SRCALPHA)
+                    circular_avatar.blit(avatar_scaled, (0, 0))
+                    
+                    mask = pygame.Surface((avatar_size, avatar_size), pygame.SRCALPHA)
+                    pygame.draw.circle(mask, (255, 255, 255, 255), 
+                                     (avatar_size // 2, avatar_size // 2), 
+                                     avatar_size // 2)
+                    circular_avatar.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+                    
+                    # Borde del avatar
+                    pygame.draw.circle(msg_surface, (255, 255, 255, 150), 
+                                     (avatar_x + avatar_size // 2, avatar_y + avatar_size // 2), 
+                                     avatar_size // 2 + int(2 * self.scale), 
+                                     width=int(2 * self.scale))
+                    
+                    msg_surface.blit(circular_avatar, (avatar_x, avatar_y))
+                except:
+                    # Fallback: círculo simple
+                    pygame.draw.circle(msg_surface, (100, 200, 255), 
+                                     (avatar_x + avatar_size // 2, avatar_y + avatar_size // 2), 
+                                     avatar_size // 2)
+            else:
+                # Sin avatar: círculo simple
+                pygame.draw.circle(msg_surface, (100, 200, 255), 
+                                 (avatar_x + avatar_size // 2, avatar_y + avatar_size // 2), 
+                                 avatar_size // 2)
+            
+            # Texto del usuario
+            text_x = avatar_x + avatar_size + int(15 * self.scale)
+            user_text = self.font.render(f"@{msg.username}", True, (255, 255, 255))
+            msg_surface.blit(user_text, (text_x, int(15 * self.scale)))
+            
+            # Mensaje principal (más grande y destacado)
+            message_font = self.large_font  # Usar fuente más grande
+            message_text = message_font.render(msg.message, True, (255, 255, 100))
+            msg_surface.blit(message_text, (text_x, int(40 * self.scale)))
+            
+            # Aplicar alpha
+            msg_surface.set_alpha(alpha)
+            
+            # Posición centrada en pantalla
+            # Centrar horizontalmente
+            center_x = (self.hires_width - msg_width) // 2
+            
+            # Centrar verticalmente, pero con offset para múltiples mensajes
+            base_center_y = (self.hires_height - msg_height) // 2
+            offset_y = i * (msg_height + int(20 * self.scale))  # Separación entre mensajes
+            final_y = base_center_y + offset_y - (len(self.game_state.command_processor.screen_messages) - 1) * (msg_height + int(20 * self.scale)) // 2
+            
+            # Asegurar que no se salga de la pantalla
+            final_y = max(int(20 * self.scale), min(final_y, self.hires_height - msg_height - int(20 * self.scale)))
+            
+            surface.blit(msg_surface, (center_x, final_y)) 
     def _generate_trail_particles(self) -> None:
         """Genera partículas de estela para las pelotas."""
         for ball in self.game_state.balls:

@@ -81,10 +81,14 @@ class EventCoordinator:
         # Donaciones -> Spawn balls múltiples
         self.event_source.on_donation(self._handle_donation)
 
-    def _handle_comment(self, username: str, avatar_url: str | None = None) -> None:
+    def _handle_comment(self, username: str, avatar_url: str | None = None, comment: str = "") -> None:
         """Maneja eventos de comentarios."""
         logging.info(f"Comentario de {username}")
         
+        if comment:
+            self.game_state.process_comment(username, comment, avatar_url)
+            logging.info(f"Comentario procesado: {comment}")
+
         # Generar múltiples pelotas según configuración
         for _ in range(app_config.BALLS_PER_COMMENT):
             self.game_state.spawn_ball(username=username, avatar_url=avatar_url)

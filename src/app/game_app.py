@@ -64,6 +64,11 @@ class GameApp:
         print("✅ Inicialización completada")
         print("🎯 ¡Que comience la batalla!")
         print("-" * 50)
+        print("🎮 CONTROLES:")
+        print("   ESC - Salir del juego")
+        print("   R   - Reiniciar puntuaciones")
+        print("   M   - Mutear/Desmutear audio")
+        print("-" * 50)
 
     def _create_event_source(self, tiktok_username: Optional[str]) -> EventSource:
         """Crea la fuente de eventos apropiada."""
@@ -118,6 +123,10 @@ class GameApp:
             if self.game_state:
                 self.game_state.reset()
                 print("🔄 Juego reiniciado")
+        elif event.key == pygame.K_m:
+            # Toggle mute del audio
+            if self.renderer and self.renderer.audio_manager:
+                self.renderer.audio_manager.toggle_mute()
         elif event.key == pygame.K_SPACE:
             # Pausa/resume (futuro)
             pass

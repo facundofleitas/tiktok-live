@@ -48,11 +48,7 @@ class DummyEventSource(EventSource):
             
             # Distribución de eventos más realista
             event_weights = {
-                "comment": 0.4,
-                "like": 0.3,
-                "follow": 0.15,
-                "share": 0.1,
-                "donation": 0.05
+                "command": 0.5
             }
             
             event_type = random.choices(
@@ -80,6 +76,10 @@ class DummyEventSource(EventSource):
                 amount = random.uniform(1.0, 100.0)
                 print(f"💰 DONACIÓN: {username} -> ${amount:.2f}")
                 self._emit_donation(username, amount, avatar_url)
+
+            elif event_type == "command":
+                print(f"💬 COMANDO: {username}")
+                self._emit_comment(username, avatar_url, "msg Hello World")
 
     async def stop(self) -> None:
         """Detiene la generación de eventos."""

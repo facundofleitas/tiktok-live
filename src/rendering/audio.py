@@ -17,6 +17,8 @@ class AudioManager:
         self.slot_hit_sound: Optional[pygame.mixer.Sound] = None
         self.donation_sound: Optional[pygame.mixer.Sound] = None
         self._initialized = False
+        self._is_muted = False
+        self._volume = 1.0  # Volumen actual (0.0 a 1.0)
 
     def initialize(self) -> None:
         """Inicializa el sistema de audio."""
@@ -64,25 +66,56 @@ class AudioManager:
 
     def play_peg_hit(self) -> None:
         """Reproduce el sonido de colisión con peg."""
-        if self.peg_hit_sound:
+        if self.peg_hit_sound and not self._is_muted:
             self.peg_hit_sound.play()
 
     def play_slot_hit(self) -> None:
         """Reproduce el sonido de llegada a slot."""
-        if self.slot_hit_sound:
+        if self.slot_hit_sound and not self._is_muted:
             self.slot_hit_sound.play()
 
     def play_donation(self) -> None:
         """Reproduce el sonido de donación (puede ser el mismo que slot por ahora)."""
-        if self.slot_hit_sound:
+        if self.slot_hit_sound and not self._is_muted:
             self.slot_hit_sound.play()
 
     def set_volume(self, volume: float) -> None:
         """Establece el volumen general (0.0 a 1.0)."""
+        self._volume = max(0.0, min(1.0, volume))
+        self._update_volumes()
+
+    def _update_volumes(self) -> None:
+        """Actualiza los volúmenes de todos los sonidos."""
+        effective_volume = 0.0 if self._is_muted else self._volume
+        
         if self.peg_hit_sound:
-            self.peg_hit_sound.set_volume(volume * 0.3)
+            self.peg_hit_sound.set_volume(effective_volume * 0.3)
         if self.slot_hit_sound:
-            self.slot_hit_sound.set_volume(volume * 0.5)
+            self.slot_hit_sound.set_volume(effective_volume * 0.5)
+
+    def toggle_mute(self) -> bool:
+        """Alterna el estado de mute. Retorna True si está muteado."""
+        self._is_muted = not self._is_muted
+        self._update_volumes()
+        status = "🔇 Audio muteado" if self._is_muted else "🔊 Audio activado"
+        print(status)
+        return self._is_muted
+
+    def set_mute(self, muted: bool) -> None:
+        """Establece el estado de mute."""
+        if self._is_muted != muted:
+            self._is_muted = muted
+            self._update_volumes()
+            status = "🔇 Audio muteado" if self._is_muted else "🔊 Audio activado"
+            print(status)
+
+    def is_muted(self) -> bool:
+        """Retorna True si el audio está muteado."""
+        return self._is_muted
+
+    def get_volume(self) -> float:
+        """Retorna el volumen actual (0.0 a 1.0)."""
+        return self._volume
 
     def cleanup(self) -> None:
         """Limpia los recursos de audio."""

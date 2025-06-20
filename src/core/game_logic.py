@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from io import BytesIO
 from typing import List, Tuple, Any, Optional, Dict
 
+from src.core.commands import CommandProcessor
+
 
 @dataclass
 class UserScore:
@@ -40,6 +42,7 @@ class GameConfig:
     slot_scores: List[int] = field(
         default_factory=lambda: [100, 50, 25, 10, 5, 10, 25, 50, 100]
     )
+
 
     def __post_init__(self) -> None:
         if len(self.slot_scores) != self.slot_count:
@@ -101,6 +104,7 @@ class GameState:
         self.pegs: List[Peg] = self._create_pegs()
         self.user_scores: Dict[str, UserScore] = {}
         self.sound_events: List[str] = []
+        self.command_processor = CommandProcessor()
 
     def _create_pegs(self) -> List[Peg]:
         """Crea la distribución triangular de pegs."""
@@ -209,6 +213,7 @@ class GameState:
     def update(self, dt: float) -> None:
         """Actualiza la lógica del juego."""
         active_balls: List[Ball] = []
+        self.command_processor.update(dt)
         
         for ball in self.balls:
             if not ball.active:
@@ -260,6 +265,22 @@ class GameState:
                 # Activa glow
                 peg.hit_timer = 0.5
 
+    def process_comment(self, username: str, comment: str, avatar_url: Optional[str] = None) -> bool:
+        """
+        Procesa un comentario para detectar comandos.
+        Retorna True si se procesó un comando, False si es un comentario normal.
+        """
+        command_result = self.command_processor.parse_command(comment)
+        
+        if command_result:
+            command_type, parameter = command_result
+            success = self.command_processor.execute_command(
+                username, command_type, parameter, self.user_scores, self
+            )
+            return success
+        
+        return False
+    
     def _handle_ball_scored(self, ball: Ball) -> None:
         """Maneja cuando una pelota llega al fondo."""
         max_pegs = self.config.top_pegs + self.config.rows - 1
